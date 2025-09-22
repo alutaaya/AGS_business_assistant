@@ -109,20 +109,20 @@ def stats_agent(state: appstate):
     st.dataframe(sales_summary_df)
 
     # region
-    summary["region_summary"] = df.groupby(["year", "month", "Region", "Product"])["Sales"].sum().to_dict()
-    region_summary_df = df.groupby(["year", "month", "Region", "Product"])["Sales"].sum().reset_index()
+    summary["region_summary"] = df.groupby(["Region"])["Sales"].sum().to_dict()
+    region_summary_df = df.groupby(["Region"])["Sales"].sum().reset_index()
     st.markdown("### Sales by Region")
     st.dataframe(region_summary_df)
 
     # median customer age
-    summary["Av_Cust_age"] = df.groupby(["year", "month", "Region", "Product"])["Customer_Age"].median().to_dict()
-    cust_age_df = df.groupby(["year", "month", "Region", "Product"])["Customer_Age"].median().reset_index()
-    st.markdown("### Median Customer Age")
+    summary["Av_Cust_age"] = df.groupby(["Region"])["Customer_Age"].median().to_dict()
+    cust_age_df = df.groupby(["Region"])["Customer_Age"].median().reset_index()
+    st.markdown("### Median Customer age per region")
     st.dataframe(cust_age_df)
 
     # gender
-    summary["cust_gender"] = df.groupby(["year", "month", "Region", "Product", "Customer_Gender"])["Sales"].sum().to_dict()
-    cust_gender_df = df.groupby(["year", "month", "Region", "Product", "Customer_Gender"])["Sales"].sum().reset_index()
+    summary["cust_gender"] = df.groupby(["Customer_Gender"])["Sales"].sum().to_dict()
+    cust_gender_df = df.groupby(["Customer_Gender"])["Sales"].sum().reset_index()
     st.markdown("### Sales by Customer Gender")
     st.dataframe(cust_gender_df)
 
