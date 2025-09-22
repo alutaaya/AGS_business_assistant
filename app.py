@@ -135,8 +135,8 @@ def stats_agent(state: appstate):
     # add yearly trends to summary (optional)
     yearly_sales = df.groupby("year")["Sales"].sum().to_dict()
     yearly_cust_sat = df.groupby("year")["Customer_Satisfaction"].median().to_dict()
-    summary["yearly_sales_trend"] = yearly_sales
-    summary["yearly_cust_satistifaction_trend"] = yearly_cust_sat
+    ##-- i do no want to show this  summary["yearly_sales_trend"] = yearly_sales
+    ##-- i do not want to show this  summary["yearly_cust_satistifaction_trend"] = yearly_cust_sat
 
     # persist summary to state
     state["statistics_summary"] = summary
@@ -151,7 +151,8 @@ def visualisation_agent(state: appstate):
 
     visuals = {}
     df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["Date"], format="%d/%m/%Y", errors="coerce")
+    df["Date"] = df["Date"].str.strip()
+    df["date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
 
