@@ -92,6 +92,7 @@ def stats_agent(state: appstate):
     summary = {}
     df = pd.read_csv(path)
     # parse date safely
+    df["Date"] = df["Date"].str.strip()
     df["date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
