@@ -103,9 +103,9 @@ def stats_agent(state: appstate):
     st.dataframe(pd.DataFrame(summary["describe"]).T)
 
     # sales summary
-    summary["sales_summary"] = df.groupby(["year", "month", "Product"])["Sales"].sum().to_dict()
-    sales_summary_df = df.groupby(["year", "month", "Product"])["Sales"].sum().reset_index()
-    st.markdown("### Sales per Year/Month/Product")
+    summary["sales_summary"] = df.groupby("year")["Sales"].sum().to_dict()
+    sales_summary_df = df.groupby("year")["Sales"].sum().reset_index()
+    st.markdown("### Sales per year")
     st.dataframe(sales_summary_df)
 
     # region
