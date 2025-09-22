@@ -127,9 +127,9 @@ def stats_agent(state: appstate):
     st.dataframe(cust_gender_df)
 
     # customer satisfaction median
-    summary["cust_satistifaction"] = df.groupby(["year", "month", "Region", "Product"])["Customer_Satisfaction"].median().to_dict()
-    cust_sat_df = df.groupby(["year", "month", "Region", "Product"])["Customer_Satisfaction"].median().reset_index()
-    st.markdown("### Median Customer Satisfaction")
+    summary["cust_satistifaction"] = df.groupby(["Product"])["Customer_Satisfaction"].median().to_dict()
+    cust_sat_df = df.groupby(["Product"])["Customer_Satisfaction"].median().reset_index()
+    st.markdown("### Median Customer Satisfaction by product")
     st.dataframe(cust_sat_df)
 
     # add yearly trends to summary (optional)
