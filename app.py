@@ -560,20 +560,7 @@ def main():
         state = stats_agent(state)
         summary = state.get("statistics_summary", {})
         
-        # Sales summary
-        if "sales_summary" in summary:
-            st.markdown("### Sales per Year/Month/Product")
-            sales_summary_df = pd.DataFrame(list(summary["sales_summary"].items()), columns=["Year-Month-Product", "Sales"])
-            st.dataframe(sales_summary_df)
-        # Yearly trends
-        if "yearly_sales_trend" in summary:
-            st.markdown("### Yearly Sales Trend")
-            yearly_sales_df = pd.DataFrame(list(summary["yearly_sales_trend"].items()), columns=["Year", "Sales"])
-            st.dataframe(yearly_sales_df)
-        if "yearly_cust_satistifaction_trend" in summary:
-            st.markdown("### Yearly Customer Satisfaction Trend")
-            yearly_cust_df = pd.DataFrame(list(summary["yearly_cust_satistifaction_trend"].items()), columns=["Year", "Median Customer Satisfaction"])
-            st.dataframe(yearly_cust_df)
+        
 
     # ----- Display visuals
     if st.button("Data visualisation"):
