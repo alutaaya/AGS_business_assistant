@@ -505,7 +505,12 @@ def main():
         doc_texts = []
         for x in doc_files:
             if x.name.endswith(".pdf"):
-                loader = PyPDFLoader(x)
+                #-- save the uploaded pdfs in a temporary file
+                with tempfile.NamedTemporaryFile(delete=False,suffix=".pdf") as tmp_file:
+                    tmp_file.write(x.read())
+                    temp_path=tmp_file.name
+                #---load using pyPDFLoader   
+                loader = PyPDFLoader(temp_path)
                 documents = loader.load()
                 # extend doc_texts with Document-like objects
                 doc_texts.extend(documents)
