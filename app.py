@@ -559,11 +559,7 @@ def main():
         state = filepath_agent(state)
         state = stats_agent(state)
         summary = state.get("statistics_summary", {})
-        # Describe
-        if "describe" in summary:
-            st.markdown("### Data Description")
-            describe_df = pd.DataFrame(summary["describe"]).T
-            st.dataframe(describe_df)
+        
         # Sales summary
         if "sales_summary" in summary:
             st.markdown("### Sales per Year/Month/Product")
