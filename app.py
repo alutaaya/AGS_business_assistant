@@ -23,6 +23,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
+import re 
+import jason
 
 # Workflow
 from langgraph.graph import StateGraph, END
@@ -92,7 +94,8 @@ def stats_agent(state: appstate):
     summary = {}
     df = pd.read_csv(path)
     # parse date safely
-    df["date"] = pd.to_datetime(df["Date"], format="%d/%m/%Y", errors="coerce")
+    df["Date"] = df["Date"].str.strip()
+    df["date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
 
@@ -102,40 +105,40 @@ def stats_agent(state: appstate):
     st.dataframe(pd.DataFrame(summary["describe"]).T)
 
     # sales summary
-    summary["sales_summary"] = df.groupby(["year", "month", "Product"])["Sales"].sum().to_dict()
-    sales_summary_df = df.groupby(["year", "month", "Product"])["Sales"].sum().reset_index()
-    st.markdown("### Sales per Year/Month/Product")
+    summary["sales_summary"] = df.groupby("year")["Sales"].sum().to_dict()
+    sales_summary_df = df.groupby("year")["Sales"].sum().reset_index()
+    st.markdown("### Sales per year")
     st.dataframe(sales_summary_df)
 
     # region
-    summary["region_summary"] = df.groupby(["year", "month", "Region", "Product"])["Sales"].sum().to_dict()
-    region_summary_df = df.groupby(["year", "month", "Region", "Product"])["Sales"].sum().reset_index()
+    summary["region_summary"] = df.groupby(["Region"])["Sales"].sum().to_dict()
+    region_summary_df = df.groupby(["Region"])["Sales"].sum().reset_index()
     st.markdown("### Sales by Region")
     st.dataframe(region_summary_df)
 
     # median customer age
-    summary["Av_Cust_age"] = df.groupby(["year", "month", "Region", "Product"])["Customer_Age"].median().to_dict()
-    cust_age_df = df.groupby(["year", "month", "Region", "Product"])["Customer_Age"].median().reset_index()
-    st.markdown("### Median Customer Age")
+    summary["Av_Cust_age"] = df.groupby(["Region"])["Customer_Age"].median().to_dict()
+    cust_age_df = df.groupby(["Region"])["Customer_Age"].median().reset_index()
+    st.markdown("### Median Customer age per region")
     st.dataframe(cust_age_df)
 
     # gender
-    summary["cust_gender"] = df.groupby(["year", "month", "Region", "Product", "Customer_Gender"])["Sales"].sum().to_dict()
-    cust_gender_df = df.groupby(["year", "month", "Region", "Product", "Customer_Gender"])["Sales"].sum().reset_index()
+    summary["cust_gender"] = df.groupby(["Customer_Gender"])["Sales"].sum().to_dict()
+    cust_gender_df = df.groupby(["Customer_Gender"])["Sales"].sum().reset_index()
     st.markdown("### Sales by Customer Gender")
     st.dataframe(cust_gender_df)
 
     # customer satisfaction median
-    summary["cust_satistifaction"] = df.groupby(["year", "month", "Region", "Product"])["Customer_Satisfaction"].median().to_dict()
-    cust_sat_df = df.groupby(["year", "month", "Region", "Product"])["Customer_Satisfaction"].median().reset_index()
-    st.markdown("### Median Customer Satisfaction")
+    summary["cust_satistifaction"] = df.groupby(["Product"])["Customer_Satisfaction"].median().to_dict()
+    cust_sat_df = df.groupby(["Product"])["Customer_Satisfaction"].median().reset_index()
+    st.markdown("### Median Customer Satisfaction by product")
     st.dataframe(cust_sat_df)
 
     # add yearly trends to summary (optional)
     yearly_sales = df.groupby("year")["Sales"].sum().to_dict()
     yearly_cust_sat = df.groupby("year")["Customer_Satisfaction"].median().to_dict()
-    summary["yearly_sales_trend"] = yearly_sales
-    summary["yearly_cust_satistifaction_trend"] = yearly_cust_sat
+    ##-- i do no want to show this  summary["yearly_sales_trend"] = yearly_sales
+    ##-- i do not want to show this  summary["yearly_cust_satistifaction_trend"] = yearly_cust_sat
 
     # persist summary to state
     state["statistics_summary"] = summary
@@ -150,7 +153,8 @@ def visualisation_agent(state: appstate):
 
     visuals = {}
     df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["Date"], format="%d/%m/%Y", errors="coerce")
+    df["Date"] = df["Date"].str.strip()
+    df["date"] = pd.to_datetime(df["Date"], errors="coerce")
     df["year"] = df["date"].dt.year
     df["month"] = df["date"].dt.month
 
@@ -284,6 +288,9 @@ def answering_agent(state: appstate):
         answer = str(response).strip()
     state["query_answer"] = answer
     return state
+
+
+
 
 
 # ------------------------
@@ -505,7 +512,12 @@ def main():
         doc_texts = []
         for x in doc_files:
             if x.name.endswith(".pdf"):
-                loader = PyPDFLoader(x)
+                #-- save the uploaded pdfs in a temporary file
+                with tempfile.NamedTemporaryFile(delete=False,suffix=".pdf") as tmp_file:
+                    tmp_file.write(x.read())
+                    temp_path=tmp_file.name
+                #---load using pyPDFLoader   
+                loader = PyPDFLoader(temp_path)
                 documents = loader.load()
                 # extend doc_texts with Document-like objects
                 doc_texts.extend(documents)
@@ -552,25 +564,8 @@ def main():
         state = filepath_agent(state)
         state = stats_agent(state)
         summary = state.get("statistics_summary", {})
-        # Describe
-        if "describe" in summary:
-            st.markdown("### Data Description")
-            describe_df = pd.DataFrame(summary["describe"]).T
-            st.dataframe(describe_df)
-        # Sales summary
-        if "sales_summary" in summary:
-            st.markdown("### Sales per Year/Month/Product")
-            sales_summary_df = pd.DataFrame(list(summary["sales_summary"].items()), columns=["Year-Month-Product", "Sales"])
-            st.dataframe(sales_summary_df)
-        # Yearly trends
-        if "yearly_sales_trend" in summary:
-            st.markdown("### Yearly Sales Trend")
-            yearly_sales_df = pd.DataFrame(list(summary["yearly_sales_trend"].items()), columns=["Year", "Sales"])
-            st.dataframe(yearly_sales_df)
-        if "yearly_cust_satistifaction_trend" in summary:
-            st.markdown("### Yearly Customer Satisfaction Trend")
-            yearly_cust_df = pd.DataFrame(list(summary["yearly_cust_satistifaction_trend"].items()), columns=["Year", "Median Customer Satisfaction"])
-            st.dataframe(yearly_cust_df)
+        
+        
 
     # ----- Display visuals
     if st.button("Data visualisation"):
