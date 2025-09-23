@@ -32,6 +32,12 @@ from langgraph.graph import StateGraph, END
 # Typing
 from typing import TypedDict, List, Any, Dict, Optional
 
+# PandaAI
+from pandasai import SmartDataframe
+from pandasai.llm import OpenAI
+from pandasai import PandasAI
+from pandasai.llm.openai import OpenAI
+
 # Load .env if present
 load_dotenv()
 
@@ -67,6 +73,17 @@ def load_llm():
         return None
     # instantiate ChatGroq exactly as you had it
     return ChatGroq(model_name="openai/gpt-oss-120b", temperature=0, api_key=groq_api)
+
+
+#----Loading the llm to use for PandaAI
+@st.cache_resource
+def load_llm2():
+    openai_api=st.secretes.get("openai_api") or os.getenv("openai_api")
+    if not openai_api:
+        st.error("❌ ERROR: openai_api not found. Please set it in Streamlit secrets or .env file.")
+        return None
+    return ChatOpenAI(model="openai/gpt-oss-120b",temperature=0,api_key=openai_api)
+        
 
 
 # ------------------------
@@ -290,136 +307,53 @@ def answering_agent(state: appstate):
     return state
 
 
-
-
-
-# ------------------------
-# Allowed operations (used by adhoc agent) -- fixed typos and return logic
-# ------------------------
-def allowed_operations(df: pd.DataFrame, operation: str, column: Optional[str] = None, groupby_col: Optional[Any] = None):
-    if operation == "describe":
-        return df.describe(include="all").T
-    elif operation == "mean":
-        if column is None:
-            return "Error: 'mean' requires a column"
-        return df[column].mean()
-    elif operation == "median":
-        if column is None:
-            return "Error: 'median' requires a column"
-        return df[column].median()
-    elif operation == "groupby_mean":
-        if groupby_col is None:
-            return "Error: 'groupby_mean' requires groupby_col"
-        # allow single or multiple groupby columns
-        if isinstance(groupby_col, str):
-            gb = [groupby_col]
-        else:
-            gb = list(groupby_col)
-        return df.groupby(gb)[column].mean().reset_index()
-    elif operation == "groupby_sum":
-        if groupby_col is None:
-            return "Error: 'groupby_sum' requires groupby_col"
-        if isinstance(groupby_col, str):
-            gb = [groupby_col]
-        else:
-            gb = list(groupby_col)
-        return df.groupby(gb)[column].sum().reset_index()
-    elif operation == "sum":
-        if column is None:
-            return "Error: 'sum' requires a column"
-        return df[column].sum()
-    elif operation == "regression":
-        # simple OLS: column (y) ~ groupby_col (x). Expect groupby_col to be a single numeric column name.
-        if column is None or groupby_col is None:
-            return "Error: 'regression' requires column (target) and groupby_col (predictor)"
-        X = df[[groupby_col]].astype(float)
-        y = df[column].astype(float)
-        X = sm.add_constant(X)
-        model = sm.OLS(y, X).fit()
-        return model.summary()
-    else:
-        return f"operation {operation} not supported"
-
-
-# ------------------------
-# Ad-hoc (restricted) agent: asks LLM to choose an operation, then runs allowed_operations
-# Fixed: JSON parsing, response extraction, robust fallbacks.
-# ------------------------
-def restricted_adhoc_agent(state: appstate, ask_stat: str):
+def restricted_adhoc_agent(state: dict, ask_stat: str):
+    """
+    Use PandasAI to answer adhoc statistical questions on the CSV.
+    """
+    
     path = state.get("csv_path")
     if not path:
         state["adhoc_result"] = "No CSV loaded."
         return state
 
     df = pd.read_csv(path)
-    df["date"] = pd.to_datetime(df["Date"], format="%d/%m/%Y", errors="coerce")
-    df["year"] = df["date"].dt.year
-    df["month"] = df["date"].dt.month
 
-    # Build schema prompt
-    schema = ", ".join(df.columns)
-    system_prompt = f"""
-You have a dataframe with columns: {schema}.
-User asked: {ask_stat}.
-Choose the best matching operation from:
-- describe
-- mean
-- median
-- sum
-- groupby_mean
-- groupby_sum
-- regression
+    # Preprocess dates
+    if "Date" in df.columns:
+        df["Date"] = df["Date"].str.strip()
+        df["date"] = pd.to_datetime(df["Date"], errors="coerce")
+        df["year"] = df["date"].dt.year
+        df["month"] = df["date"].dt.month
 
-Respond in valid JSON with keys: operation (string), column (string or null), groupby_col (string or list or null).
-Example:
-{{"operation":"groupby_mean","column":"Sales","groupby_col":["Region","Product"]}}
-"""
+    
 
-    llm = load_llm()
-    if llm is None:
-        state["adhoc_result"] = "LLM not available."
-        return state
+    # Wrap the dataframe with PandasAI SmartDataframe
+    llm2=load_llm2()
+    llm2 = OpenAI(api_token=openai_api)  # requires your OpenAI key
+    sdf = SmartDataframe(df, config={"llm": llm2})
 
-    response = llm.predict(system_prompt)
-    # get text content safely
-    if hasattr(response, "content"):
-        text = response.content
-    else:
-        text = str(response)
-
-    # Try to parse JSON from the model response robustly
-    import json
-    parsed = None
     try:
-        parsed = json.loads(text)
-    except Exception:
-        # Try to extract a JSON substring if the model wrapped it in backticks or code fences
-        import re
-        m = re.search(r"\{.*\}", text, re.S)
-        if m:
-            try:
-                parsed = json.loads(m.group(0))
-            except Exception:
-                parsed = None
+        # Let PandasAI answer the user question directly
+        result = sdf.chat(ask_stat)
 
-    if not parsed:
-        # If parsing fails, set a friendly error and return
-        state["adhoc_result"] = {"error": "Could not parse LLM response as JSON.", "raw_response": text}
-        return state
+        # Store results in state
+        state["adhoc_result"] = result
 
-    # Extract fields (allow column/groupby_col to be missing)
-    operation = parsed.get("operation")
-    column = parsed.get("column")
-    groupby_col = parsed.get("groupby_col")
+        # Optionally: convert result into a narrative and add to your vectorstore
+        if "vectordb" in state:
+            narrative = f"Answer to '{ask_stat}': {result}"
+            new_doc = Document(page_content=narrative, metadata={"source": "adhoc_result"})
+            state["vectordb"].add_documents([new_doc])
 
-    # Run allowed operation safely
-    try:
-        result = allowed_operations(df, operation=operation, column=column, groupby_col=groupby_col)
     except Exception as e:
-        result = f"Error executing operation: {e}"
+        state["adhoc_result"] = f"Error with PandasAI: {e}"
 
-    state["adhoc_result"] = result
     return state
+
+
+
+
 
 
 # ------------------------
