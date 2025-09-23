@@ -33,7 +33,7 @@ from langgraph.graph import StateGraph, END
 from typing import TypedDict, List, Any, Dict, Optional
 
 # PandaAI
-from pandasai import SmartDataframe
+from pandasai import pandasAI
 from pandasai.llm.openai import OpenAI
 
 # Load .env if present
@@ -80,7 +80,7 @@ def load_llm2():
     if not openai_api:
         st.error("❌ ERROR: openai_api not found. Please set it in Streamlit secrets or .env file.")
         return None
-    return ChatOpenAI(model="openai/gpt-oss-120b",temperature=0,api_key=openai_api)
+    return OpenAI(model="gpt-3.5-turbo",temperature=0,api_key=openai_api)
         
 
 
@@ -328,23 +328,17 @@ def restricted_adhoc_agent(state: dict, ask_stat: str):
 
     # Wrap the dataframe with PandasAI SmartDataframe
     llm2=load_llm2()
-    llm2 = OpenAI(api_token=openai_api)  # requires your OpenAI key
-    sdf = SmartDataframe(df, config={"llm": llm2})
+    pandas_ai=pandasAI(llm2)
+    result=pandas_ai.run(df,ask_stat,show_code=True,is_conversational_answer=True)
+    state["adhoc_result"] = result
 
-    try:
-        # Let PandasAI answer the user question directly
-        result = sdf.chat(ask_stat)
+    # Optionally: convert result into a narrative and add to your vectorstore
+    if "vectordb" in state:
+        narrative = f"Answer to '{ask_stat}': {result}"
+        new_doc = Document(page_content=narrative, metadata={"source": "adhoc_result"})
+        state["vectordb"].add_documents([new_doc])
 
-        # Store results in state
-        state["adhoc_result"] = result
-
-        # Optionally: convert result into a narrative and add to your vectorstore
-        if "vectordb" in state:
-            narrative = f"Answer to '{ask_stat}': {result}"
-            new_doc = Document(page_content=narrative, metadata={"source": "adhoc_result"})
-            state["vectordb"].add_documents([new_doc])
-
-    except Exception as e:
+        except Exception as e:
         state["adhoc_result"] = f"Error with PandasAI: {e}"
 
     return state
