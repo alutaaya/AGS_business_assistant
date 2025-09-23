@@ -14,4 +14,4 @@ langgraph
 faiss-cpu
 huggingface-hub
 openai
-pandasai
+pandasai==0.2.2
