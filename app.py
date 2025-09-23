@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import statsmodels.api as sm
 import re 
-import jason
+import json
 
 # Workflow
 from langgraph.graph import StateGraph, END
