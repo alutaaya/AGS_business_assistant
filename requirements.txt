@@ -13,6 +13,5 @@ langchain-groq
 langgraph
 faiss-cpu
 huggingface-hub
-pandasai @ git+https://github.com/gventuri/pandas-ai.git@master
 openai
-rich
+pandasai
