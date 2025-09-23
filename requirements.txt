@@ -10,7 +10,7 @@ langchain-groq
 langgraph
 
 # Vector stores & embeddings
-faiss-cpu
+
 sentence-transformers
 
 # PDF handling
@@ -25,7 +25,7 @@ seaborn
 statsmodels
 
 # PandasAI & OpenAI
-pandasai
+
 openai
 
 # Typing / utilities
