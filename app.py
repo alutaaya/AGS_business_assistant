@@ -34,8 +34,6 @@ from typing import TypedDict, List, Any, Dict, Optional
 
 # PandaAI
 from pandasai import SmartDataframe
-from pandasai.llm import OpenAI
-from pandasai import PandasAI
 from pandasai.llm.openai import OpenAI
 
 # Load .env if present
