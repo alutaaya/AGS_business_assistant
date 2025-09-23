@@ -13,5 +13,5 @@ langchain-groq
 langgraph
 faiss-cpu
 huggingface-hub
-pandasai>=2.0.0
+pandasai==0.2.2
 openai
